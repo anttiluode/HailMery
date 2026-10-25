@@ -185,6 +185,48 @@ The delayed image and the delayed imitator fall off together. Smooth babbling
 blurs the edge out to about twice the window; jittery babbling cuts it at the
 window.
 
+**Q4. When the lock slips: dissociation**
+
+The body stays exactly the same. Only the child's internal timing is mis-set,
+and we ask how much of its *own* body it still attributes to itself:
+
+- **shift:** the self-model's window looks too late, expecting effects after
+  they actually arrive;
+- **shorten:** the window shrinks, as if the slow integrator were lost (the
+  analogue of blocking slow NMDA currents, which is what ketamine does);
+- **drift:** the timing of the efference copy (the internal copy of each
+  command) wanders slowly, so the phase lock between slow model and fast flow
+  slips.
+
+![dissociation](results/dissociation.png)
+
+Fraction of the child's own body attributed to itself:
+
+| knob | setting | jittery babble | smooth babble |
+|---|---|---:|---:|
+| shift | 0 → 4 → 8 → 16 steps late | 1.00 → 0.54 → 0.00 → 0.00 | 1.00 → 0.93 → 0.61 → 0.25 |
+| shorten | window 12 → 4 → 2 → 1 | 1.00 → 0.52 → 0.06 → 0.01 | 1.00 → 0.93 → 0.77 → 0.69 |
+| drift | max drift 0 → 1 → 4 → 16 | 1.00 → 0.48 → 0.15 → 0.03 | 1.00 → 0.95 → 0.84 → 0.51 |
+
+Every knob makes the child disown its own body while nothing about the body
+changed: the "my actions don't feel like mine" of depersonalization, produced
+purely by a timing fault in the self-model.
+
+The tradeoff, which I did not predict: **the same property that makes the self
+sharp makes it fragile.** Random, jittery movement draws a crisp self/other
+edge (Q3) but collapses at the first timing slip; a drift of a single step
+halves it. Smooth, predictable movement gives a blurry edge but a robust self,
+because the predictable past can stand in for a mistimed present. A self
+that rejects imitators precisely is the self that dissociates most easily.
+
+This fits the human picture the toy was built against, without proving it:
+self-related cortex has the longest timescales, ketamine blocks the slowest
+excitatory currents, and dissociation in mice comes with a posteromedial
+rhythm that decouples that region from the rest of the brain (Vesuna et al.,
+*Nature* 2020). The proposal is **the self is the phase lock between a slow
+self-model and the fast sensorimotor flow; dissociation is that lock
+slipping**, not the flow simply getting faster or slower.
+
 ## Ledger
 
 | Claim | Status |
@@ -193,6 +235,9 @@ window.
 | Cross-modal agreement alone does not single out the self | Shown in the toy (Q1) |
 | The self = what your own recent acts predict | A definition; the toy shows it works (Q2) |
 | The self's edge is a time window; delayed self and delayed imitator are equivalent; random babbling sharpens the edge | Follows from the definition; shown in the toy (Q3); consistent with the developmental findings cited |
+| Mis-timing the self-model (late window, lost integrator, drifting copy) makes the system disown its own unchanged body | Shown in the toy (Q4) |
+| A sharp self/other edge and a robust self trade off, both set by how predictable one's own movement is | Shown in the toy (Q3 + Q4); untested in people |
+| Dissociation = the slow–fast phase lock slipping | A proposal consistent with the cited findings, not established |
 | The observer of observers is a model of one's own attention | Attention schema theory: a serious, testable hypothesis, not established |
 | Why any of it feels like something | Not addressed. Open for everyone. |
 
@@ -200,5 +245,5 @@ window.
 
 ```bash
 pip install numpy matplotlib
-python mirror.py          # ~10 seconds; writes results/mirror.json and results/boundary.png
+python mirror.py          # ~10 seconds; writes results/mirror.json, boundary.png, dissociation.png
 ```

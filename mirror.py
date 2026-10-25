@@ -176,13 +176,68 @@ def q3(seed=0, delays=(0, 2, 4, 8, 12, 16, 24, 32, 48)):
     return out
 
 
+def window_at(u, L, offset):
+    """Command window covering lags offset .. offset+L-1."""
+    return np.hstack([shift(u, offset + k) for k in range(L)])
+
+
+def own_body_attributed(copy, own, tr, te, L, offset, lam=1e-2):
+    """Fraction of my own sensed effects that my efference copy, seen through my window, predicts."""
+    X = window_at(copy, L, offset)
+    X1 = np.hstack([X, np.ones((len(X), 1))])
+    B = np.linalg.solve(X1[tr].T @ X1[tr] + lam * np.eye(X1.shape[1]), X1[tr].T @ own[tr])
+    return max(0.0, r2(X1[te] @ B, own[te]))
+
+
+def drifting_copy(rng, u, J, p_step=0.05):
+    """Efference copy whose timing drifts: copy(t) = u(t - j(t)), j a slow random walk in [-J, J]."""
+    if J == 0:
+        return u.copy()
+    T = len(u)
+    j = np.zeros(T, dtype=int)
+    steps = rng.choice([-1, 0, 1], size=T, p=[p_step / 2, 1 - p_step, p_step / 2])
+    for t in range(1, T):
+        j[t] = np.clip(j[t - 1] + steps[t], -J, J)
+    idx = np.clip(np.arange(T) - j, 0, T - 1)
+    return u[idx]
+
+
+def q4_dissociation(seed=0, offsets=(0, 2, 4, 6, 8, 12, 16), lengths=(12, 8, 6, 4, 3, 2, 1),
+                    jitters=(0, 1, 2, 4, 8, 16)):
+    """When the lock slips: my own body, judged by a mis-set self-model.
+
+    The body is unchanged throughout. Only the child's internal timing changes:
+      shift    the window looks too late (expects effects after they arrive)
+      shorten  the window is too short (the slow integrator is lost)
+      drift    the efference copy's timing wanders (the phase lock slips)
+    """
+    out = {}
+    tr, te = slice(0, T_TRAIN), slice(T_TRAIN, None)
+    for label, rho in (("smooth_babble", 0.95), ("jittery_babble", 0.3)):
+        u, Y, S, O = world(seed, T_TRAIN + T_TEST, babble_rho=rho)
+        own = np.hstack([S[name] for name in DIMS])
+        rng = np.random.default_rng(seed + 77)
+        out[label] = {
+            "babble_rho": rho,
+            "shift": {"offsets": list(offsets),
+                      "own_body_attributed": [own_body_attributed(u, own, tr, te, WINDOW, k) for k in offsets]},
+            "shorten": {"lengths": list(lengths),
+                        "own_body_attributed": [own_body_attributed(u, own, tr, te, L, 0) for L in lengths]},
+            "drift": {"max_drift": list(jitters),
+                      "own_body_attributed": [own_body_attributed(drifting_copy(rng, u, J), own, tr, te, WINDOW, 0)
+                                              for J in jitters]},
+        }
+    return out
+
+
 def main():
     try:
         sys.stdout.reconfigure(errors="replace")
     except Exception:
         pass
     os.makedirs("results", exist_ok=True)
-    res = {"window": WINDOW, "body_delays": DELAY, **q1_q2(), "Q3_boundary": q3()}
+    res = {"window": WINDOW, "body_delays": DELAY, **q1_q2(), "Q3_boundary": q3(),
+           "Q4_dissociation": q4_dissociation()}
     with open("results/mirror.json", "w", encoding="utf-8") as f:
         json.dump(res, f, indent=1)
     print("Q1  what vision and sound agree on (no motor info):")
@@ -198,6 +253,12 @@ def main():
         print("     delay           " + " ".join(f"{d:5d}" for d in v["delays"]))
         print("     own image       " + " ".join(f"{x:5.2f}" for x in v["own_image_attributed_to_self"]))
         print("     imitator        " + " ".join(f"{x:5.2f}" for x in v["imitator_attributed_to_self"]))
+    print("Q4  dissociation: same body, mis-set self-model (fraction of own body attributed to self):")
+    for label, v in res["Q4_dissociation"].items():
+        print(f"   {label} (rho {v['babble_rho']}):")
+        for knob, key in (("shift", "offsets"), ("shorten", "lengths"), ("drift", "max_drift")):
+            print(f"     {knob:8s} {key:10s} " + " ".join(f"{x:5d}" for x in v[knob][key]))
+            print(f"     {'':8s} {'attributed':10s} " + " ".join(f"{x:5.2f}" for x in v[knob]["own_body_attributed"]))
     plot(res)
 
 
@@ -221,6 +282,24 @@ def plot(res):
     axes[0].legend(frameon=False)
     fig.tight_layout()
     fig.savefig("results/boundary.png", dpi=130)
+
+    fig, axes = plt.subplots(1, 3, figsize=(13, 3.9), sharey=True)
+    titles = {"shift": ("window looks too late", "window offset (steps)", "offsets"),
+              "shorten": ("slow integrator lost", "window length (steps)", "lengths"),
+              "drift": ("efference-copy timing drifts", "max timing drift (steps)", "max_drift")}
+    for ax, (knob, (title, xlabel, key)) in zip(axes, titles.items()):
+        for label, style in (("jittery_babble", "-o"), ("smooth_babble", "--s")):
+            v = res["Q4_dissociation"][label]
+            ax.plot(v[knob][key], v[knob]["own_body_attributed"], style,
+                    label=label.replace("_", " "))
+        ax.set_title(title)
+        ax.set_xlabel(xlabel)
+        ax.grid(alpha=0.25)
+    axes[1].invert_xaxis()
+    axes[0].set_ylabel("own body attributed to self")
+    axes[0].legend(frameon=False)
+    fig.tight_layout()
+    fig.savefig("results/dissociation.png", dpi=130)
 
 
 if __name__ == "__main__":
